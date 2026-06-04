@@ -45,7 +45,9 @@ def get_configured_databases() -> list[dict]:
             "user": os.getenv("SQLSERVER_USER", "sa"),
             "password": os.getenv("SQLSERVER_PASSWORD", ""),
             "encrypt": os.getenv("SQLSERVER_ENCRYPT", "false").lower() == "true",
+            # If SQLSERVER_DATABASES not set → auto-discovers from SQL Server
             "databases": [d.strip() for d in os.getenv("SQLSERVER_DATABASES", "").split(",") if d.strip()],
+            "db_filter": os.getenv("SQLSERVER_DB_FILTER", ""),  # optional prefix filter
         })
 
     return configured
@@ -344,12 +346,35 @@ def _run_sqlserver_checks(conn, databases: list) -> dict:
     if blocking:
         issues.append(f"SQLSERVER_BLOCKING_DETECTED:{len(blocking)}_blocked_sessions")
 
-    # Database sizes and status for configured DBs
+    # Auto-discover databases if not explicitly configured
+    db_filter = ""
+    if not databases:
+        try:
+            cursor.execute("""
+                SELECT name FROM sys.databases
+                WHERE name NOT IN ('master','tempdb','model','msdb')
+                AND state_desc = 'ONLINE'
+                ORDER BY name
+            """)
+            databases = [row[0] for row in cursor.fetchall()]
+            result["databases_auto_discovered"] = True
+            logger.info("Auto-discovered %d databases from SQL Server", len(databases))
+        except Exception as e:
+            logger.warning("Could not auto-discover databases: %s", e)
+
+    # Apply optional filter (e.g. SQLSERVER_DB_FILTER=QA → only QA* databases)
+    if db_filter and databases:
+        databases = [d for d in databases if d.startswith(db_filter)]
+        logger.info("Filtered to %d databases matching '%s'", len(databases), db_filter)
+
+    result["discovered_databases"] = databases
+
+    # Get size and status for all discovered databases
     if databases:
         db_info = []
         for db_name in databases:
             try:
-                cursor.execute(f"""
+                cursor.execute("""
                     SELECT
                         name,
                         state_desc,
@@ -452,11 +477,36 @@ def _sqlserver_via_winrm(conn, config: dict) -> dict:
     else:
         issues.append("SQLSERVER_SERVICE_NOT_FOUND")
 
-    # Use sqlcmd to check each database
+    # Auto-discover databases via sqlcmd if not explicitly listed
+    db_filter = config.get("db_filter", "")
+    if not databases:
+        discover = conn.run(f"""
+            $dbs = sqlcmd -S "{host}" -U "{user}" -P "{password}" -Q "
+                SET NOCOUNT ON;
+                SELECT name FROM sys.databases
+                WHERE name NOT IN ('master','tempdb','model','msdb')
+                AND state_desc = 'ONLINE'
+                ORDER BY name
+            " -h -1 -W 2>&1
+            Write-Output $dbs
+        """)
+        if discover["success"] and discover["stdout"]:
+            databases = [line.strip() for line in discover["stdout"].splitlines()
+                        if line.strip() and not line.strip().startswith("(") and not line.strip().startswith("-")]
+            result["databases_auto_discovered"] = True
+
+    # Apply optional filter
+    if db_filter and databases:
+        databases = [d for d in databases if d.startswith(db_filter)]
+
+    result["discovered_databases"] = databases
+
+    # Check each database
     db_results = []
     for db_name in databases:
         db_check = conn.run(f"""
             $result = sqlcmd -S "{host}" -U "{user}" -P "{password}" -d "{db_name}" -Q "
+                SET NOCOUNT ON;
                 SELECT
                     DB_NAME() as db_name,
                     (SELECT COUNT(*) FROM sys.dm_exec_sessions WHERE is_user_process=1 AND DB_NAME(database_id)=DB_NAME()) as connections,
@@ -466,7 +516,7 @@ def _sqlserver_via_winrm(conn, config: dict) -> dict:
         """)
         db_info = {"name": db_name}
         if db_check["success"] and db_check["stdout"]:
-            db_info["raw_output"] = db_check["stdout"][:500]
+            db_info["raw_output"] = db_check["stdout"][:300]
             if "error" in db_check["stdout"].lower() or "failed" in db_check["stdout"].lower():
                 issues.append(f"SQLSERVER_DB_ERROR:{db_name}:{db_check['stdout'][:150]}")
         else:

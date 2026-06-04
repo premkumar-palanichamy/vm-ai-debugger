@@ -19,7 +19,7 @@ router = APIRouter()
 class InvestigateRequest(BaseModel):
     site_name: str = Field(default="", description="IIS site name to inspect")
     app_path: str = Field(default="", description="Physical path to the .NET app")
-    check_mysql: bool = Field(default=True, description="Include MySQL inspection")
+    check_mysql: bool = Field(default=True, description="Include database inspection")
     check_network: bool = Field(default=True, description="Include network checks")
     target_host: str = Field(default="", description="Hostname/IP to check connectivity to")
 
@@ -51,11 +51,8 @@ async def _run_investigation(inv_id: str, req: InvestigateRequest):
 async def start_investigation(req: InvestigateRequest, background_tasks: BackgroundTasks):
     inv_id = save_investigation(
         namespace=req.site_name or "vm",
-        pod_name=None,
-        deployment_name=None,
-        node_name=None,
-        job_name=None,
-        scan_mode="full",
+        pod_name=None, deployment_name=None,
+        node_name=None, job_name=None, scan_mode="full",
     )
     background_tasks.add_task(_run_investigation, inv_id, req)
     return {"investigation_id": inv_id, "status": "running",
@@ -109,18 +106,36 @@ async def submit_feedback(inv_id: str, req: FeedbackRequest):
 
 @router.get("/health")
 async def health():
+    import os
     from backend.tools.winrm_connector import is_windows_configured
     from backend.tools.ssh_connector import is_linux_configured
-    import os
+    from backend.tools.database_inspector import get_configured_databases
+
+    configured_dbs = get_configured_databases()
+    db_summary = {}
+    for db in configured_dbs:
+        db_summary[db["type"]] = {
+            "host": db["host"],
+            "databases": db.get("databases", []),
+        }
+
     return {
         "status": "ok",
         "service": "vm-ai-debugger",
-        "windows_vm_configured": is_windows_configured(),
-        "linux_vm_configured": is_linux_configured(),
-        "mysql_configured": bool(os.getenv("MYSQL_HOST", "")),
+        "connections": {
+            "windows_vm": {
+                "configured": is_windows_configured(),
+                "host": os.getenv("VM_WINDOWS_HOST", ""),
+            },
+            "linux_vm": {
+                "configured": is_linux_configured(),
+                "host": os.getenv("VM_LINUX_HOST", ""),
+            },
+        },
+        "databases": db_summary,
         "llm_providers": {
             "anthropic": bool(os.getenv("ANTHROPIC_API_KEY", "")),
             "openrouter": bool(os.getenv("OPENROUTER_API_KEY", "")),
             "gemini": bool(os.getenv("GEMINI_API_KEY", "")),
-        }
+        },
     }

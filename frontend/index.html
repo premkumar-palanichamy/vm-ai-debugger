@@ -9,7 +9,7 @@
     --bg:#0f1117;--bg2:#1a1d27;--bg3:#232635;--border:#2e3248;
     --text:#e2e4f0;--muted:#8b8fa8;--blue:#5b8dee;--blue2:#3b6fd4;
     --green:#3ecf8e;--red:#f56565;--amber:#f6ad55;--purple:#9f7aea;
-    --radius:10px;--radius-sm:6px;
+    --teal:#38b2ac;--radius:10px;--radius-sm:6px;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;min-height:100vh;}
@@ -51,7 +51,7 @@
   .dot-error{background:var(--red);}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
   .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;}
-  .card-title{font-size:14px;font-weight:600;margin-bottom:12px;}
+  .card-title{font-size:13px;font-weight:600;margin-bottom:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
   .root-cause{font-size:16px;font-weight:600;line-height:1.4;}
   .meta-row{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0;}
   .meta-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:500;}
@@ -60,8 +60,8 @@
   .pill-sev-high{background:#2a1a0a;color:var(--amber);}
   .pill-sev-medium{background:#0d1f2e;color:var(--blue);}
   .pill-sev-low{background:#0a1f14;color:var(--green);}
-  .tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:20px;}
-  .tab{padding:8px 16px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);transition:all .15s;}
+  .tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:20px;overflow-x:auto;}
+  .tab{padding:8px 16px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);transition:all .15s;white-space:nowrap;}
   .tab.active{color:var(--blue);border-bottom-color:var(--blue);}
   .signals-list{list-style:none;}
   .signals-list li{padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;display:flex;gap:8px;}
@@ -85,10 +85,18 @@
   .feedback-row{display:flex;gap:8px;margin-top:12px;align-items:center;}
   .feedback-btn{background:var(--bg3);border:1px solid var(--border);color:var(--muted);border-radius:var(--radius-sm);padding:5px 12px;cursor:pointer;font-size:12px;transition:all .15s;}
   .feedback-btn:hover{border-color:var(--blue);color:var(--blue);}
-  .health-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
-  .health-chip{font-size:11px;padding:3px 8px;border-radius:99px;font-weight:500;}
-  .chip-ok{background:#0d2a1a;color:var(--green);}
-  .chip-warn{background:#2a1515;color:var(--red);}
+  .config-item{display:flex;align-items:start;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);}
+  .config-item:last-child{border:none;}
+  .config-icon{font-size:14px;flex-shrink:0;margin-top:1px;}
+  .config-label{font-size:12px;font-weight:500;}
+  .config-detail{font-size:11px;color:var(--muted);margin-top:2px;}
+  .config-status-ok{color:var(--green);}
+  .config-status-err{color:var(--red);}
+  .db-table{width:100%;border-collapse:collapse;font-size:12px;}
+  .db-table th{text-align:left;padding:6px 10px;background:var(--bg3);color:var(--muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.05em;}
+  .db-table td{padding:8px 10px;border-top:1px solid var(--border);}
+  .db-table tr:hover td{background:var(--bg3);}
+  .issue-chip{display:inline-block;background:#2a1515;color:var(--red);font-size:10px;padding:2px 6px;border-radius:4px;margin:2px;}
 </style>
 </head>
 <body>
@@ -110,11 +118,11 @@
       <input id="app-path" type="text" placeholder="E:\wwwroot\ConpendQA1">
     </div>
     <div class="form-group">
-      <label>Target Host <span style="color:var(--muted)">(for network checks)</span></label>
+      <label>Target Host <span style="color:var(--muted)">(network checks)</span></label>
       <input id="target-host" type="text" placeholder="qa1.conpend.ai">
     </div>
     <div class="toggle-row">
-      <span style="font-size:13px">Check MySQL</span>
+      <span style="font-size:13px">Check Database</span>
       <div class="toggle on" id="toggle-mysql" onclick="toggleSwitch(this)"></div>
     </div>
     <div class="toggle-row">
@@ -126,7 +134,7 @@
     </div>
     <div class="divider"></div>
     <div class="section-title">Configuration</div>
-    <div id="health-panel" style="font-size:12px;color:var(--muted)">Loading...</div>
+    <div id="health-panel"><div style="color:var(--muted);font-size:12px">Loading...</div></div>
     <div class="divider"></div>
     <div class="section-title">Recent Investigations</div>
     <div id="history-list"><div style="color:var(--muted);font-size:12px">Loading...</div></div>
@@ -136,11 +144,11 @@
       <div class="empty-state">
         <div class="icon">🖥</div>
         <h3>VM AI Debugger</h3>
-        <p>Configure your VM connection in <code>.env</code>,<br>then click <strong>Investigate</strong> to start.</p>
+        <p>Configure your VM credentials in <code>.env</code>,<br>then click <strong>Investigate</strong>.</p>
         <br>
-        <p style="font-size:12px">Detects: IIS failures · App pool crashes · .NET errors<br>
-        SAML2 config issues · MySQL problems · SSL expiry<br>
-        High CPU/memory · Disk full · Network blocks</p>
+        <p style="font-size:12px">Detects: IIS failures · .NET crashes · SAML2 errors<br>
+        SQL Server / MySQL issues · SSL expiry · High CPU/memory<br>
+        Disk full · Network blocks · Windows Event errors</p>
       </div>
     </div>
   </main>
@@ -148,22 +156,89 @@
 <script>
 const API='/api/v1';
 let currentInvId=null,pollTimer=null;
-const CAT_ICONS={iis_failure:'🌐',dotnet_crash:'💥',saml2_error:'🔐',mysql_down:'🗄️',mysql_performance:'📊',high_cpu:'⚡',high_memory:'💾',disk_full:'💿',ssl_expiry:'🔒',network_blocked:'🌐',service_crashed:'⚙️',config_error:'⚙️',pending_reboot:'🔄',unknown:'❓'};
+const CAT_ICONS={
+  iis_failure:'🌐',dotnet_crash:'💥',saml2_error:'🔐',
+  mysql_down:'🗄️',mysql_performance:'📊',
+  high_cpu:'⚡',high_memory:'💾',disk_full:'💿',
+  ssl_expiry:'🔒',network_blocked:'🌐',service_crashed:'⚙️',
+  config_error:'⚙️',pending_reboot:'🔄',unknown:'❓'
+};
 
 async function checkHealth(){
   try{
     const r=await fetch(`${API}/health`);
     const d=await r.json();
     document.getElementById('api-status').textContent=d.status==='ok'?'✅ Connected':'❌ Error';
-    const el=document.getElementById('health-panel');
-    const chips=[
-      {label:'Windows VM',ok:d.windows_vm_configured},
-      {label:'Linux VM',ok:d.linux_vm_configured},
-      {label:'MySQL',ok:d.mysql_configured},
-      {label:'LLM',ok:Object.values(d.llm_providers||{}).some(v=>v)},
-    ];
-    el.innerHTML='<div class="health-row">'+chips.map(c=>`<span class="health-chip ${c.ok?'chip-ok':'chip-warn'}">${c.ok?'✓':'✗'} ${c.label}</span>`).join('')+'</div>';
-  }catch{document.getElementById('api-status').textContent='❌ API Unreachable';}
+    renderHealthPanel(d);
+  }catch{
+    document.getElementById('api-status').textContent='❌ API Unreachable';
+    document.getElementById('health-panel').innerHTML='<div style="color:var(--red);font-size:12px">Cannot reach API</div>';
+  }
+}
+
+function renderHealthPanel(d){
+  const conn = d.connections || {};
+  const dbs = d.databases || {};
+  const llm = d.llm_providers || {};
+
+  const winOk = conn.windows_vm?.configured;
+  const linuxOk = conn.linux_vm?.configured;
+  const llmOk = Object.values(llm).some(v=>v);
+  const activeLLMs = Object.entries(llm).filter(([,v])=>v).map(([k])=>k).join(', ');
+
+  let html = '';
+
+  // VM connections
+  html += `<div class="config-item">
+    <div class="config-icon">${winOk?'✅':'❌'}</div>
+    <div>
+      <div class="config-label ${winOk?'config-status-ok':'config-status-err'}">Windows VM</div>
+      <div class="config-detail">${winOk ? (conn.windows_vm?.host||'configured') : 'not configured — set VM_WINDOWS_HOST'}</div>
+    </div>
+  </div>`;
+
+  html += `<div class="config-item">
+    <div class="config-icon">${linuxOk?'✅':'➖'}</div>
+    <div>
+      <div class="config-label" style="color:${linuxOk?'var(--green)':'var(--muted)'}">Linux VM</div>
+      <div class="config-detail">${linuxOk ? (conn.linux_vm?.host||'configured') : 'not configured (optional)'}</div>
+    </div>
+  </div>`;
+
+  // Databases
+  if(Object.keys(dbs).length > 0){
+    for(const [type, info] of Object.entries(dbs)){
+      const dbIcon = type === 'sqlserver' ? '🗄️' : '🐬';
+      const dbLabel = type === 'sqlserver' ? 'SQL Server' : 'MySQL';
+      html += `<div class="config-item">
+        <div class="config-icon">✅</div>
+        <div>
+          <div class="config-label config-status-ok">${dbIcon} ${dbLabel}</div>
+          <div class="config-detail">${info.host}</div>
+          ${info.databases?.length ? `<div class="config-detail">DBs: ${info.databases.join(', ')}</div>` : ''}
+        </div>
+      </div>`;
+    }
+  } else {
+    html += `<div class="config-item">
+      <div class="config-icon">➖</div>
+      <div>
+        <div class="config-label" style="color:var(--muted)">No Database</div>
+        <div class="config-detail">Set SQLSERVER_HOST or MYSQL_HOST</div>
+      </div>
+    </div>`;
+  }
+
+  // LLM
+  html += `<div class="config-item">
+    <div class="config-icon">${llmOk?'✅':'❌'}</div>
+    <div>
+      <div class="config-label ${llmOk?'config-status-ok':'config-status-err'}">LLM</div>
+      <div class="config-detail">${llmOk ? activeLLMs : 'no API key — set OPENROUTER_API_KEY'}</div>
+    </div>
+  </div>`;
+
+  document.getElementById('health-panel').innerHTML = html;
 }
 
 async function loadHistory(){
@@ -179,14 +254,14 @@ function renderHistory(invs){
   if(!invs.length){el.innerHTML='<div style="color:var(--muted);font-size:12px">No investigations yet</div>';return;}
   el.innerHTML=invs.map(inv=>{
     const dc=inv.status==='running'?'dot-running':inv.status==='error'?'dot-error':'dot-completed';
-    const sc=inv.failure_category?`sev-${inv.severity||'low'}`:'';
+    const sc=inv.severity?`sev-${inv.severity}`:'';
     const icon=CAT_ICONS[inv.failure_category]||'❓';
     const title=inv.pod_name||inv.deployment_name||inv.namespace||'VM';
     const ts=new Date(inv.created_at).toLocaleTimeString();
     return `<div class="history-item${inv.id===currentInvId?' active':''}" onclick="loadInvestigation('${inv.id}')">
       <div class="hi-ts">${ts}</div>
       <div class="hi-title">${icon} ${title}</div>
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:2px">
         <span class="status-dot ${dc}"></span>
         ${inv.failure_category?`<span class="sev-badge ${sc}">${inv.failure_category.replace(/_/g,' ')}</span>`:''}
         ${inv.confidence?`<span style="font-size:11px;color:var(--muted)">${inv.confidence}%</span>`:''}
@@ -198,6 +273,8 @@ function renderHistory(invs){
 function toggleSwitch(el){el.classList.toggle('on');}
 
 async function startInvestigation(){
+  const btn=document.querySelector('.btn-primary');
+  btn.disabled=true; btn.textContent='⏳ Starting...';
   const body={
     site_name:document.getElementById('site-name').value||'',
     app_path:document.getElementById('app-path').value||'',
@@ -213,13 +290,17 @@ async function startInvestigation(){
     loadHistory();
     pollResult(currentInvId);
   }catch(e){showToast('Error: '+e.message);}
+  finally{btn.disabled=false;btn.textContent='🔍 Investigate';}
 }
 
 function showLoading(target){
-  document.getElementById('main-content').innerHTML=`<div class="card"><div class="spinner"></div>
+  document.getElementById('main-content').innerHTML=`<div class="card">
+    <div class="spinner"></div>
     <p style="text-align:center;color:var(--muted)">Investigating <strong style="color:var(--text)">${target}</strong></p>
     <div class="progress-bar"><div class="progress-fill"></div></div>
-    <p style="text-align:center;font-size:12px;color:var(--muted);margin-top:12px">Connecting to VM — checking IIS, .NET app, MySQL, Event Viewer, SSL...</p>
+    <p style="text-align:center;font-size:12px;color:var(--muted);margin-top:12px">
+      Connecting via WinRM — checking system, IIS, .NET, databases, Event Viewer, SSL...
+    </p>
   </div>`;
 }
 
@@ -246,16 +327,23 @@ async function loadInvestigation(invId){
 
 function renderResult(inv){
   if(inv.status==='error'){
-    document.getElementById('main-content').innerHTML=`<div class="card"><div class="card-title">❌ Investigation Error</div><p style="color:var(--red)">${inv.root_cause||'Unknown error'}</p></div>`;
+    document.getElementById('main-content').innerHTML=`<div class="card">
+      <div class="card-title">❌ Investigation Error</div>
+      <p style="color:var(--red)">${inv.root_cause||'Unknown error'}</p>
+    </div>`;
     return;
   }
   const a=inv.analysis||{};
+  const ev=inv.evidence||{};
   const icon=CAT_ICONS[a.failure_category]||'❓';
   const sevCls=`pill-sev-${a.severity||'low'}`;
   const signals=(a.signals||[]).map(s=>`<li><span class="signal-dot"></span>${s}</li>`).join('');
   const fixes=(a.fix_recommendations||[]).map(f=>`
     <div class="fix-step">
-      <div class="fix-step-header"><div class="step-num">${f.step||'→'}</div><div style="font-weight:500;font-size:13px">${f.description}</div></div>
+      <div class="fix-step-header">
+        <div class="step-num">${f.step||'→'}</div>
+        <div style="font-weight:500;font-size:13px">${f.description}</div>
+      </div>
       ${f.command?`<div class="fix-cmd" onclick="copyCmd(this)">${f.command}</div>`:''}
       ${f.expected_outcome?`<div class="fix-outcome">✓ ${f.expected_outcome}</div>`:''}
     </div>`).join('');
@@ -279,14 +367,19 @@ function renderResult(inv){
         <span class="meta-pill ${sevCls}">⚠ ${a.severity||'unknown'}</span>
         ${inv.mode?`<span style="font-size:12px;color:var(--muted)">mode: ${inv.mode}</span>`:''}
       </div>
+      ${a.affected_resources?.length?`<div style="font-size:12px;color:var(--muted)">Affected: ${a.affected_resources.join(' · ')}</div>`:''}
     </div>
+
     <div class="tabs">
       <div class="tab active" onclick="showTab(this,'summary')">Summary</div>
       <div class="tab" onclick="showTab(this,'signals')">Signals (${(a.signals||[]).length})</div>
       <div class="tab" onclick="showTab(this,'fixes')">Fix Steps (${(a.fix_recommendations||[]).length})</div>
       <div class="tab" onclick="showTab(this,'prevention')">Prevention</div>
+      <div class="tab" onclick="showTab(this,'system')">System</div>
+      <div class="tab" onclick="showTab(this,'database')">Database</div>
       <div class="tab" onclick="showTab(this,'raw')">Raw Evidence</div>
     </div>
+
     <div id="tab-summary">
       <div class="summary-box">${a.summary||'No summary available.'}</div>
       <div class="feedback-row">
@@ -295,16 +388,297 @@ function renderResult(inv){
         <button class="feedback-btn" onclick="submitFeedback('${inv.id}',false)">👎 No</button>
       </div>
     </div>
-    <div id="tab-signals" style="display:none"><ul class="signals-list">${signals||'<li>No signals</li>'}</ul></div>
+    <div id="tab-signals" style="display:none"><ul class="signals-list">${signals||'<li>No signals captured</li>'}</ul></div>
     <div id="tab-fixes" style="display:none">${fixes||'<p style="color:var(--muted)">No fix steps</p>'}</div>
     <div id="tab-prevention" style="display:none"><div class="prevention-box">💡 ${a.prevention||'No prevention advice.'}</div></div>
-    <div id="tab-raw" style="display:none"><div class="fix-cmd" style="max-height:500px;overflow-y:auto;white-space:pre-wrap">${JSON.stringify(inv.evidence||{},null,2)}</div></div>`;
+    <div id="tab-system" style="display:none">${renderSystem(ev)}</div>
+    <div id="tab-database" style="display:none">${renderDatabase(ev)}</div>
+    <div id="tab-raw" style="display:none">
+      <div class="fix-cmd" style="max-height:500px;overflow-y:auto;white-space:pre-wrap">${JSON.stringify(ev,null,2)}</div>
+    </div>`;
+}
+
+function renderSystem(ev){
+  const sys = ev.system || {};
+  if(!sys || sys.error) return `<p style="color:var(--muted)">No system data collected.</p>`;
+
+  let html = '<div class="card">';
+  html += '<div class="card-title">System Resources</div>';
+
+  // CPU
+  if(sys.cpu_percent !== undefined){
+    const cpuColor = sys.cpu_percent > 90 ? 'var(--red)' : sys.cpu_percent > 70 ? 'var(--amber)' : 'var(--green)';
+    html += `<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:12px;color:var(--muted)">CPU Usage</span>
+        <span style="font-size:12px;font-weight:600;color:${cpuColor}">${sys.cpu_percent}%</span>
+      </div>
+      <div style="height:6px;background:var(--border);border-radius:99px">
+        <div style="height:100%;width:${sys.cpu_percent}%;background:${cpuColor};border-radius:99px"></div>
+      </div>
+    </div>`;
+  }
+
+  // Memory
+  if(sys.memory){
+    const memPct = sys.memory.used_percent;
+    const memColor = memPct > 90 ? 'var(--red)' : memPct > 70 ? 'var(--amber)' : 'var(--green)';
+    html += `<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:12px;color:var(--muted)">Memory Usage</span>
+        <span style="font-size:12px;font-weight:600;color:${memColor}">${memPct}%</span>
+      </div>
+      <div style="height:6px;background:var(--border);border-radius:99px">
+        <div style="height:100%;width:${memPct}%;background:${memColor};border-radius:99px"></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px">Free: ${sys.memory.free_gb || sys.memory.free_mb+'MB'}</div>
+    </div>`;
+  }
+
+  // Disks
+  if(sys.disks?.length){
+    html += `<div style="margin-bottom:12px"><div style="font-size:12px;color:var(--muted);margin-bottom:8px">Disk Usage</div>`;
+    for(const disk of sys.disks){
+      const diskColor = disk.used_percent > 90 ? 'var(--red)' : disk.used_percent > 70 ? 'var(--amber)' : 'var(--green)';
+      html += `<div style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="font-size:12px">${disk.drive || disk.mount}</span>
+          <span style="font-size:12px;font-weight:600;color:${diskColor}">${disk.used_percent}%</span>
+        </div>
+        <div style="height:5px;background:var(--border);border-radius:99px">
+          <div style="height:100%;width:${Math.min(disk.used_percent,100)}%;background:${diskColor};border-radius:99px"></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Free: ${disk.free_gb || disk.available} / Total: ${disk.total_gb || disk.total}</div>
+      </div>`;
+    }
+    html += '</div>';
+  }
+
+  // Uptime + pending reboot
+  if(sys.uptime) html += `<div style="font-size:12px;color:var(--muted)">Uptime: ${sys.uptime}</div>`;
+  if(sys.pending_reboot) html += `<div style="margin-top:8px;padding:8px;background:#2a1a0a;border-radius:var(--radius-sm);color:var(--amber);font-size:12px">⚠️ Pending reboot detected</div>`;
+
+  // Issues
+  if(sys.detected_issues?.length){
+    html += `<div style="margin-top:12px">${sys.detected_issues.map(i=>`<span class="issue-chip">${i}</span>`).join('')}</div>`;
+  }
+
+  html += '</div>';
+
+  // IIS
+  const iis = ev.iis || {};
+  if(iis.app_pools?.length || iis.sites?.length){
+    html += '<div class="card"><div class="card-title">IIS</div>';
+
+    if(iis.iis_service_status){
+      const ok = iis.iis_service_status === 'Running';
+      html += `<div style="margin-bottom:10px;font-size:13px">W3SVC: <span style="color:${ok?'var(--green)':'var(--red)'};font-weight:600">${iis.iis_service_status}</span></div>`;
+    }
+
+    if(iis.app_pools?.length){
+      html += `<table class="db-table"><thead><tr><th>App Pool</th><th>State</th><th>CLR</th></tr></thead><tbody>`;
+      for(const p of iis.app_pools){
+        const ok = p.state === 'Started';
+        html += `<tr>
+          <td>${p.name}</td>
+          <td style="color:${ok?'var(--green)':'var(--red)'}">${p.state}</td>
+          <td style="color:var(--muted)">${p.clr_version||'-'}</td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+    }
+    html += '</div>';
+  }
+
+  return html || '<p style="color:var(--muted)">No system data collected.</p>';
+}
+
+function renderDatabase(ev){
+  const dbs = ev.databases;
+  if(!dbs || dbs.status === 'not_configured'){
+    return `<div style="color:var(--muted);padding:20px">
+      No database configured. Set SQLSERVER_HOST or MYSQL_HOST in .env
+    </div>`;
+  }
+
+  const dbList = dbs.databases || [];
+  if(!dbList.length){
+    return `<div style="color:var(--muted);padding:20px">No database results collected.</div>`;
+  }
+
+  let html = '';
+
+  for(const db of dbList){
+    const isOk = db.connection_status === 'connected';
+    const isWinRM = db.connection_method === 'winrm_passthrough';
+    const dbIcon = db.type === 'sqlserver' ? '🗄️' : '🐬';
+    const dbLabel = db.type === 'sqlserver' ? 'SQL Server' : 'MySQL';
+    const dbInfo = db.database_info || [];
+    const discovered = db.discovered_databases || [];
+    const autoDiscovered = db.databases_auto_discovered;
+
+    // ── Server summary card ──────────────────────────────────────
+    html += `<div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="font-size:14px;font-weight:600">${dbIcon} ${dbLabel}</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;padding:3px 8px;border-radius:99px;background:${isOk?'#0d2a1a':'#2a1515'};color:${isOk?'var(--green)':'var(--red)'}">
+            ${isOk ? '✓ connected' : '✗ failed'}
+          </span>
+          ${isWinRM ? '<span style="font-size:11px;padding:3px 8px;border-radius:99px;background:var(--bg3);color:var(--muted)">via WinRM</span>' : ''}
+          ${autoDiscovered ? '<span style="font-size:11px;padding:3px 8px;border-radius:99px;background:#1a2040;color:var(--blue)">auto-discovered</span>' : ''}
+        </div>
+      </div>`;
+
+    if(db.version){
+      html += `<div style="font-size:11px;color:var(--muted);margin-bottom:12px">${db.version.split('\n')[0]}</div>`;
+    }
+
+    // Connections bar
+    if(db.connections){
+      const p = db.connections.usage_percent;
+      const c = p > 80 ? 'var(--red)' : p > 60 ? 'var(--amber)' : 'var(--green)';
+      html += `<div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:12px;color:var(--muted)">Connections</span>
+          <span style="font-size:12px;font-weight:600;color:${c}">${db.connections.current} / ${db.connections.max} (${p}%)</span>
+        </div>
+        <div style="height:5px;background:var(--border);border-radius:99px">
+          <div style="height:100%;width:${Math.min(p,100)}%;background:${c};border-radius:99px;transition:width .3s"></div>
+        </div>
+      </div>`;
+    }
+
+    // Long running queries alert
+    if(db.long_running_queries?.length){
+      html += `<div style="background:#2a1a0a;border:1px solid var(--amber);border-radius:var(--radius-sm);padding:10px;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:600;color:var(--amber);margin-bottom:8px">⚠️ ${db.long_running_queries.length} Long Running Quer${db.long_running_queries.length>1?'ies':'y'}</div>`;
+      for(const q of db.long_running_queries){
+        html += `<div style="border-top:1px solid #3d2a0a;padding-top:6px;margin-top:6px">
+          <div style="font-size:11px;color:var(--muted)">
+            DB: <strong style="color:var(--text)">${q.database||q.db||'-'}</strong>
+            · ${q.elapsed_seconds||q.time_seconds||q.time||'?'}s elapsed
+            · wait: ${q.wait_type||'-'}
+          </div>
+          <div style="font-size:11px;font-family:monospace;color:var(--amber);margin-top:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">
+            ${(q.query_text||q.query||'').substring(0,200)}
+          </div>
+        </div>`;
+      }
+      html += '</div>';
+    }
+
+    // Blocking alert
+    if(db.blocking_queries?.length){
+      html += `<div style="background:#2a1515;border:1px solid var(--red);border-radius:var(--radius-sm);padding:10px;margin-bottom:12px;font-size:12px;color:var(--red)">
+        ⛔ ${db.blocking_queries.length} blocking session(s) — queries are waiting on locks
+      </div>`;
+    }
+
+    // Issues
+    if(db.detected_issues?.length){
+      html += `<div style="margin-bottom:12px">${db.detected_issues.map(i=>`<span class="issue-chip">${i.replace(/_/g,' ')}</span>`).join('')}</div>`;
+    }
+
+    html += '</div>';
+
+    // ── Databases table ──────────────────────────────────────────
+    if(dbInfo.length > 0){
+      // Group by prefix (QA1, QA2, QA3...) for easier scanning
+      const groups = {};
+      for(const d of dbInfo){
+        const match = d.name.match(/^([A-Za-z]+\d*)/);
+        const prefix = match ? match[1] : 'Other';
+        if(!groups[prefix]) groups[prefix] = [];
+        groups[prefix].push(d);
+      }
+
+      const totalDbs = dbInfo.length;
+      const offlineDbs = dbInfo.filter(d => d.state && d.state !== 'ONLINE').length;
+
+      html += `<div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-size:13px;font-weight:600">
+            Databases
+            <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:6px">${totalDbs} total</span>
+          </div>
+          ${offlineDbs > 0 ? `<span style="font-size:11px;padding:3px 8px;border-radius:99px;background:#2a1515;color:var(--red)">${offlineDbs} offline</span>` : '<span style="font-size:11px;padding:3px 8px;border-radius:99px;background:#0d2a1a;color:var(--green)">all online</span>'}
+        </div>`;
+
+      // Search box for large DB lists
+      if(totalDbs > 10){
+        html += `<input type="text" placeholder="Search databases..." 
+          style="width:100%;margin-bottom:12px;padding:6px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);font-size:12px;outline:none"
+          oninput="filterDbs(this.value)">`;
+      }
+
+      html += `<div id="db-groups">`;
+
+      for(const [group, dbs] of Object.entries(groups)){
+        const groupOffline = dbs.filter(d => d.state && d.state !== 'ONLINE').length;
+        html += `<div class="db-group" data-group="${group}" style="margin-bottom:12px">
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;display:flex;align-items:center;gap:8px">
+            ${group}
+            <span style="font-size:10px;font-weight:400">${dbs.length} db${dbs.length>1?'s':''}</span>
+            ${groupOffline > 0 ? `<span style="color:var(--red)">${groupOffline} offline</span>` : ''}
+          </div>
+          <table class="db-table" style="margin-bottom:0">
+            <thead><tr><th>Database</th><th>Size</th><th>Status</th><th>Recovery</th></tr></thead>
+            <tbody>`;
+
+        for(const d of dbs){
+          const ok = !d.state || d.state === 'ONLINE';
+          const sizeDisplay = d.size_mb ? (d.size_mb >= 1024 ? (d.size_mb/1024).toFixed(1)+'GB' : d.size_mb+'MB') : '-';
+          html += `<tr class="db-row" data-name="${d.name.toLowerCase()}">
+            <td style="font-weight:500">${d.name}</td>
+            <td style="color:var(--muted)">${sizeDisplay}</td>
+            <td><span style="color:${ok?'var(--green)':'var(--red)'}">● ${d.state||'ONLINE'}</span></td>
+            <td style="color:var(--muted);font-size:11px">${d.recovery_model||'-'}</td>
+          </tr>`;
+          if(d.error){
+            html += `<tr><td colspan="4" style="color:var(--red);font-size:11px">${d.error}</td></tr>`;
+          }
+        }
+        html += `</tbody></table></div>`;
+      }
+
+      html += `</div></div>`;
+
+    } else if(db.database_checks?.length){
+      // WinRM passthrough results
+      html += `<div class="card">
+        <div style="font-size:13px;font-weight:600;margin-bottom:12px">Database Checks (via WinRM)</div>
+        <table class="db-table"><thead><tr><th>Database</th><th>Status</th></tr></thead><tbody>`;
+      for(const d of db.database_checks){
+        const ok = !d.error;
+        html += `<tr>
+          <td>${d.name}</td>
+          <td style="color:${ok?'var(--green)':'var(--red)'}">${ok?'✓ reachable':'✗ '+d.error?.substring(0,80)}</td>
+        </tr>`;
+      }
+      html += '</tbody></table></div>';
+    }
+  }
+
+  return html || '<p style="color:var(--muted)">No database data available.</p>';
+}
+
+function filterDbs(query){
+  const q = query.toLowerCase();
+  document.querySelectorAll('.db-row').forEach(row => {
+    const name = row.dataset.name || '';
+    row.style.display = name.includes(q) ? '' : 'none';
+  });
+  document.querySelectorAll('.db-group').forEach(group => {
+    const visibleRows = group.querySelectorAll('.db-row:not([style*="display: none"])');
+    group.style.display = visibleRows.length === 0 ? 'none' : '';
+  });
 }
 
 function showTab(el,name){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
-  ['summary','signals','fixes','prevention','raw'].forEach(t=>{
+  ['summary','signals','fixes','prevention','system','database','raw'].forEach(t=>{
     const e=document.getElementById('tab-'+t);
     if(e)e.style.display=t===name?'block':'none';
   });
@@ -312,14 +686,20 @@ function showTab(el,name){
 
 function copyCmd(el){navigator.clipboard.writeText(el.textContent.trim()).then(()=>showToast('Copied!'));}
 async function submitFeedback(invId,helpful){
-  try{await fetch(`${API}/investigation/${invId}/feedback`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({helpful})});
-  showToast(helpful?'👍 Thanks!':'👎 Noted');}catch{}
+  try{
+    await fetch(`${API}/investigation/${invId}/feedback`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({helpful})});
+    showToast(helpful?'👍 Thanks!':'👎 Noted');
+  }catch{}
 }
-function showToast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3000);}
+function showToast(msg){
+  const t=document.createElement('div');t.className='toast';t.textContent=msg;
+  document.body.appendChild(t);setTimeout(()=>t.remove(),3000);
+}
 
 checkHealth();
 loadHistory();
 setInterval(loadHistory,30000);
+setInterval(checkHealth,60000);
 </script>
 </body>
 </html>
