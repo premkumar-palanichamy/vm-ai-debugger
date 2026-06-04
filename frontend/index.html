@@ -254,9 +254,9 @@ function renderHistory(invs){
   if(!invs.length){el.innerHTML='<div style="color:var(--muted);font-size:12px">No investigations yet</div>';return;}
   el.innerHTML=invs.map(inv=>{
     const dc=inv.status==='running'?'dot-running':inv.status==='error'?'dot-error':'dot-completed';
-    const sc=inv.severity?`sev-${inv.severity}`:'';
+    const sc=inv.severity?`sev-${inv.severity}`:'sev-low';
     const icon=CAT_ICONS[inv.failure_category]||'❓';
-    const title=inv.pod_name||inv.deployment_name||inv.namespace||'VM';
+    const title=inv.site_name||inv.namespace||'VM';
     const ts=new Date(inv.created_at).toLocaleTimeString();
     return `<div class="history-item${inv.id===currentInvId?' active':''}" onclick="loadInvestigation('${inv.id}')">
       <div class="hi-ts">${ts}</div>

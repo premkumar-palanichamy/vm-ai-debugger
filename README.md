@@ -13,17 +13,11 @@ Connects to your VMs via WinRM (Windows) or SSH (Linux), collects diagnostic evi
 
 ## Screenshots
 
-### Dashboard Home
-
+**Dashboard** - Investigation form and configuration status:
 ![Dashboard Home](docs/images/dashboard-home.png)
 
-### Interactive API Docs
-
-![Swagger API Docs](docs/images/api-docs.png)
-
-### Dashboard Tabs Overview
-
-![Dashboard Tabs Overview](docs/images/dashboard-tabs-overview.png)
+**API Documentation** - Full endpoint reference and schemas:
+![API Docs](docs/images/api-docs-complete.png)
 
 ## Quick start
 
@@ -190,6 +184,11 @@ All differ → LOW               → flag for human review
 ```
 
 The dashboard shows individual model results with ensemble confidence scoring.
+
+# Results
+
+**Analysis & Findings** - Detailed diagnosis from ensemble:
+![Investigation Analysis](docs/images/investigation-analysis.png)
 
 ## Failure categories covered
 

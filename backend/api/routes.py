@@ -50,9 +50,9 @@ async def _run_investigation(inv_id: str, req: InvestigateRequest):
 @router.post("/investigate", status_code=202)
 async def start_investigation(req: InvestigateRequest, background_tasks: BackgroundTasks):
     inv_id = save_investigation(
-        namespace=req.site_name or "vm",
-        pod_name=None, deployment_name=None,
-        node_name=None, job_name=None, scan_mode="full",
+        site_name=req.site_name or "vm",
+        target_host=req.target_host or "",
+        scan_mode="full",
     )
     background_tasks.add_task(_run_investigation, inv_id, req)
     return {"investigation_id": inv_id, "status": "running",
@@ -62,9 +62,9 @@ async def start_investigation(req: InvestigateRequest, background_tasks: Backgro
 @router.post("/investigate/sync")
 async def investigate_sync(req: InvestigateRequest):
     inv_id = save_investigation(
-        namespace=req.site_name or "vm",
-        pod_name=None, deployment_name=None,
-        node_name=None, job_name=None, scan_mode="full",
+        site_name=req.site_name or "vm",
+        target_host=req.target_host or "",
+        scan_mode="full",
     )
     try:
         result = await asyncio.to_thread(

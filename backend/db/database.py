@@ -1,8 +1,7 @@
-"""SQLite persistence for investigation history."""
+"""SQLite persistence for VM investigation history."""
 import os, sqlite3, json, uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 DB_PATH = Path(os.getenv("DB_PATH", "vm_debugger.db"))
 
@@ -16,12 +15,9 @@ def init_db():
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS investigations (
                 id TEXT PRIMARY KEY,
-                namespace TEXT NOT NULL,
-                pod_name TEXT,
-                deployment_name TEXT,
-                node_name TEXT,
-                job_name TEXT,
-                scan_mode TEXT DEFAULT 'targeted',
+                site_name TEXT,
+                target_host TEXT,
+                scan_mode TEXT DEFAULT 'full',
                 status TEXT DEFAULT 'running',
                 failure_category TEXT,
                 severity TEXT,
@@ -43,12 +39,16 @@ def init_db():
             );
         """)
 
-def save_investigation(namespace, pod_name, deployment_name, node_name, job_name, scan_mode):
+def save_investigation(site_name="", target_host="", scan_mode="full",
+):
     inv_id = str(uuid.uuid4())
+    # Support both old (namespace) and new (site_name) calling convention
+    resolved_site = site_name or namespace or "vm"
     with get_conn() as conn:
         conn.execute(
-            "INSERT INTO investigations (id, namespace, pod_name, deployment_name, node_name, job_name, scan_mode, status, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
-            (inv_id, namespace, pod_name, deployment_name, node_name, job_name, scan_mode, "running", datetime.now(timezone.utc).isoformat())
+            "INSERT INTO investigations (id, site_name, target_host, scan_mode, status, created_at) VALUES (?,?,?,?,?,?)",
+            (inv_id, resolved_site, target_host or "", scan_mode, "running",
+             datetime.now(timezone.utc).isoformat())
         )
     return inv_id
 
@@ -75,8 +75,10 @@ def update_investigation(inv_id, result):
 
 def mark_investigation_error(inv_id, error):
     with get_conn() as conn:
-        conn.execute("UPDATE investigations SET status=?, root_cause=?, completed_at=? WHERE id=?",
-                     ("error", error[:500], datetime.now(timezone.utc).isoformat(), inv_id))
+        conn.execute(
+            "UPDATE investigations SET status=?, root_cause=?, completed_at=? WHERE id=?",
+            ("error", error[:500], datetime.now(timezone.utc).isoformat(), inv_id)
+        )
 
 def get_investigation(inv_id):
     with get_conn() as conn:
@@ -94,15 +96,18 @@ def get_investigation(inv_id):
 
 def list_investigations(namespace=None, limit=50):
     with get_conn() as conn:
-        if namespace:
-            rows = conn.execute("SELECT id,namespace,pod_name,deployment_name,scan_mode,status,failure_category,severity,confidence,root_cause,summary,created_at,completed_at FROM investigations WHERE namespace=? ORDER BY created_at DESC LIMIT ?", (namespace, limit)).fetchall()
-        else:
-            rows = conn.execute("SELECT id,namespace,pod_name,deployment_name,scan_mode,status,failure_category,severity,confidence,root_cause,summary,created_at,completed_at FROM investigations ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+        rows = conn.execute(
+            "SELECT id, site_name, target_host, scan_mode, status, failure_category, severity, confidence, root_cause, summary, created_at, completed_at FROM investigations ORDER BY created_at DESC LIMIT ?",
+            (limit,)
+        ).fetchall()
         return [dict(r) for r in rows]
 
 def save_feedback(investigation_id, helpful, comment=None):
     fb_id = str(uuid.uuid4())
     with get_conn() as conn:
-        conn.execute("INSERT INTO feedback (id, investigation_id, helpful, comment, created_at) VALUES (?,?,?,?,?)",
-                     (fb_id, investigation_id, int(helpful), comment, datetime.now(timezone.utc).isoformat()))
+        conn.execute(
+            "INSERT INTO feedback (id, investigation_id, helpful, comment, created_at) VALUES (?,?,?,?,?)",
+            (fb_id, investigation_id, int(helpful), comment,
+             datetime.now(timezone.utc).isoformat())
+        )
     return fb_id
