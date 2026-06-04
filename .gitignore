@@ -1,0 +1,15 @@
+.env
+*.db
+*.pyc
+*.pyo
+*.pyd
+**/__pycache__/
+__pycache__/
+.DS_Store
+*.egg-info/
+.venv/
+venv/
+.idea/
+.vscode/
+.cursor/
+*.log
