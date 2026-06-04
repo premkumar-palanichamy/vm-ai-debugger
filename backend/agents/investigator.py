@@ -244,11 +244,7 @@ def investigate(
         target_host=target_host,
     )
 
-    # Build dynamic prompt from detected services
-    detected = evidence.get("detected_services", {})
-    dynamic_prompt = build_system_prompt(detected)
-
-    # Build dynamic prompt from detected services
+    # Build dynamic prompt based on detected services on this VM
     detected = evidence.get("detected_services", {})
     dynamic_prompt = build_system_prompt(detected)
 

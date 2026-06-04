@@ -324,7 +324,7 @@ FAILURE CATEGORIES (pick exactly one):
 
 Respond ONLY with valid JSON — no markdown, no explanation outside JSON:
 {{
-  "root_cause": "concise description of root cause",
+  "root_cause": "max 8 words — short title only e.g. Disk full on E drive",
   "failure_category": "one category from the list above",
   "confidence": 85,
   "severity": "critical|high|medium|low",
