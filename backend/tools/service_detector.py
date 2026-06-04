@@ -314,6 +314,11 @@ This is NOT Kubernetes. Analyze the VM evidence and identify the root cause.
     categories = _build_categories(web, app, dbs)
 
     prompt += f"""
+IMPORTANT RULES:
+- If disk space is low or full, ALWAYS classify as disk_full regardless of what other services are affected
+- Database errors caused by disk being full are still disk_full not database failures
+- Only classify as a database category if disk space is healthy
+
 FAILURE CATEGORIES (pick exactly one):
 {', '.join(categories)}
 
@@ -372,18 +377,21 @@ def _build_categories(web: list, app: list, dbs: list) -> list:
     if "Redis" in dbs:
         categories.append("redis_down")
 
-    # Always include system-level categories
-    categories.extend([
+    # System-level categories — always first so LLM prioritizes them
+    # disk_full and high_cpu/memory come BEFORE app/db categories
+    system_cats = [
+        "disk_full",       # most common cause of cascading failures
         "high_cpu",
         "high_memory",
-        "disk_full",
         "ssl_expiry",
         "network_blocked",
         "service_crashed",
         "config_error",
         "pending_reboot",
         "unknown",
-    ])
+    ]
+    # Insert system categories at the START so LLM sees them first
+    categories = system_cats + categories
 
     # Deduplicate while preserving order
     seen = set()

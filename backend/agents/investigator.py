@@ -48,7 +48,7 @@ FAILURE CATEGORIES (pick exactly one):
 
 Respond ONLY with valid JSON:
 {
-  "root_cause": "concise description",
+  "root_cause": "max 8 words — short title e.g. Disk full on E drive",
   "failure_category": "one category from above",
   "confidence": 85,
   "severity": "critical|high|medium|low",
@@ -143,7 +143,7 @@ def gather_evidence(
     return evidence
 
 
-def analyze_with_llm(evidence: dict) -> dict:
+def analyze_with_llm(evidence: dict, dynamic_prompt: str = "") -> dict:
     """Send evidence to configured LLM — auto-detects provider."""
     evidence_text = json.dumps(evidence, indent=2, default=str)
     if len(evidence_text) > 80000:
@@ -160,15 +160,15 @@ Respond with valid JSON only."""
     # Try providers in order
     anthropic_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
     if anthropic_key:
-        return _call_anthropic(user_message, anthropic_key)
+        return _call_anthropic(user_message, anthropic_key, dynamic_prompt)
 
     openrouter_key = os.getenv("OPENROUTER_API_KEY", "").strip()
     if openrouter_key:
-        return _call_openrouter(user_message, openrouter_key)
+        return _call_openrouter(user_message, openrouter_key, dynamic_prompt)
 
     gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
     if gemini_key:
-        return _call_gemini(user_message, gemini_key)
+        return _call_gemini(user_message, gemini_key, dynamic_prompt)
 
     raise ValueError("No API key configured. Set ANTHROPIC_API_KEY, OPENROUTER_API_KEY, or GEMINI_API_KEY in .env")
 
@@ -185,14 +185,14 @@ def _call_anthropic(user_message: str, api_key: str, system_prompt: str = "") ->
     return _parse_response(message.content[0].text)
 
 
-def _call_openrouter(user_message: str, api_key: str) -> dict:
+def _call_openrouter(user_message: str, api_key: str, system_prompt: str = "") -> dict:
     import httpx
     model = os.getenv("OPENROUTER_MODEL", "anthropic/claude-3-haiku")
     response = httpx.post(
         "https://openrouter.ai/api/v1/chat/completions",
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
                  "HTTP-Referer": "https://github.com/premkumar-palanichamy/vm-ai-debugger"},
-        json={"model": model, "messages": [{"role": "system", "content": SYSTEM_PROMPT},
+        json={"model": model, "messages": [{"role": "system", "content": system_prompt or SYSTEM_PROMPT},
                                             {"role": "user", "content": user_message}], "temperature": 0.1},
         timeout=90,
     )
@@ -200,14 +200,14 @@ def _call_openrouter(user_message: str, api_key: str) -> dict:
     return _parse_response(response.json()["choices"][0]["message"]["content"])
 
 
-def _call_gemini(user_message: str, api_key: str) -> dict:
+def _call_gemini(user_message: str, api_key: str, system_prompt: str = "") -> dict:
     import httpx
     model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
     response = httpx.post(
         f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
         params={"key": api_key},
         headers={"Content-Type": "application/json"},
-        json={"system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+        json={"system_instruction": {"parts": [{"text": system_prompt or SYSTEM_PROMPT}]},
               "contents": [{"parts": [{"text": user_message}]}],
               "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}},
         timeout=90,
@@ -248,6 +248,10 @@ def investigate(
     detected = evidence.get("detected_services", {})
     dynamic_prompt = build_system_prompt(detected)
 
+    # Build dynamic prompt from detected services
+    detected = evidence.get("detected_services", {})
+    dynamic_prompt = build_system_prompt(detected)
+
     # Auto-detect ensemble vs single model
     from backend.agents.ensemble import get_configured_models, analyze_with_ensemble_sync
     configured = get_configured_models()
@@ -278,7 +282,7 @@ def investigate(
             "ensemble": ensemble_result,
         }
     else:
-        analysis = analyze_with_llm(evidence)
+        analysis = analyze_with_llm(evidence, dynamic_prompt)
         return {
             "site_name": site_name,
             "mode": "single",
