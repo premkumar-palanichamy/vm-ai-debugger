@@ -1,0 +1,25 @@
+# Web framework
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
+aiofiles>=23.2.1
+
+# Environment
+python-dotenv>=1.0.0
+
+# Data validation
+pydantic>=2.7.0
+
+# LLM providers
+anthropic>=0.28.0
+httpx>=0.27.0
+
+# Windows VM connection (WinRM)
+pywinrm>=0.4.3
+
+# Linux VM connection (SSH)
+paramiko>=3.4.0
+
+# MySQL inspection
+pymysql>=1.1.0
+cryptography>=42.0.0

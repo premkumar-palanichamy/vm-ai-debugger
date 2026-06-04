@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VM AI Debugger</title>
+<style>
+  :root {
+    --bg:#0f1117;--bg2:#1a1d27;--bg3:#232635;--border:#2e3248;
+    --text:#e2e4f0;--muted:#8b8fa8;--blue:#5b8dee;--blue2:#3b6fd4;
+    --green:#3ecf8e;--red:#f56565;--amber:#f6ad55;--purple:#9f7aea;
+    --radius:10px;--radius-sm:6px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;min-height:100vh;}
+  header{background:var(--bg2);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10;}
+  header h1{font-size:18px;font-weight:600;}
+  .badge{background:var(--blue2);color:#fff;font-size:11px;padding:2px 8px;border-radius:99px;font-weight:500;}
+  .vm-icon{width:32px;height:32px;background:var(--purple);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;}
+  .layout{display:flex;min-height:calc(100vh - 57px);}
+  .sidebar{width:290px;background:var(--bg2);border-right:1px solid var(--border);padding:16px;flex-shrink:0;overflow-y:auto;}
+  .main{flex:1;padding:24px;overflow-y:auto;}
+  .section-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:10px;}
+  .form-group{margin-bottom:12px;}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;}
+  input,select{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;outline:none;transition:border-color .15s;}
+  input:focus,select:focus{border-color:var(--blue);}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;}
+  .toggle{width:36px;height:20px;background:var(--border);border-radius:99px;cursor:pointer;position:relative;transition:background .2s;}
+  .toggle.on{background:var(--blue);}
+  .toggle::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s;}
+  .toggle.on::after{transform:translateX(16px);}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;width:100%;}
+  .btn-primary{background:var(--blue);color:#fff;}
+  .btn-primary:hover{background:var(--blue2);}
+  .btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+  .divider{height:1px;background:var(--border);margin:14px 0;}
+  .history-item{padding:10px;border-radius:var(--radius-sm);cursor:pointer;border:1px solid transparent;margin-bottom:6px;transition:all .15s;}
+  .history-item:hover{background:var(--bg3);border-color:var(--border);}
+  .history-item.active{background:var(--bg3);border-color:var(--blue);}
+  .hi-ts{font-size:11px;color:var(--muted);}
+  .hi-title{font-size:12px;font-weight:500;margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .sev-badge{font-size:10px;padding:1px 6px;border-radius:99px;font-weight:600;}
+  .sev-critical{background:#4a1515;color:var(--red);}
+  .sev-high{background:#3d2a0a;color:var(--amber);}
+  .sev-medium{background:#1a2e40;color:var(--blue);}
+  .sev-low{background:#0d2a1a;color:var(--green);}
+  .status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .dot-running{background:var(--amber);animation:pulse 1.2s infinite;}
+  .dot-completed{background:var(--green);}
+  .dot-error{background:var(--red);}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;}
+  .card-title{font-size:14px;font-weight:600;margin-bottom:12px;}
+  .root-cause{font-size:16px;font-weight:600;line-height:1.4;}
+  .meta-row{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0;}
+  .meta-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:500;}
+  .pill-cat{background:#1a2040;color:var(--purple);}
+  .pill-sev-critical{background:#2a0f0f;color:var(--red);}
+  .pill-sev-high{background:#2a1a0a;color:var(--amber);}
+  .pill-sev-medium{background:#0d1f2e;color:var(--blue);}
+  .pill-sev-low{background:#0a1f14;color:var(--green);}
+  .tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:20px;}
+  .tab{padding:8px 16px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);transition:all .15s;}
+  .tab.active{color:var(--blue);border-bottom-color:var(--blue);}
+  .signals-list{list-style:none;}
+  .signals-list li{padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;display:flex;gap:8px;}
+  .signals-list li:last-child{border:none;}
+  .signal-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);flex-shrink:0;margin-top:5px;}
+  .fix-step{background:var(--bg3);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px;border-left:3px solid var(--blue);}
+  .fix-step-header{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+  .step-num{background:var(--blue);color:#fff;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;}
+  .fix-cmd{background:#0d1117;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-family:'SF Mono','Fira Mono',monospace;font-size:12px;color:var(--green);margin-top:8px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;cursor:pointer;}
+  .fix-outcome{font-size:12px;color:var(--muted);margin-top:6px;}
+  .summary-box{background:var(--bg3);border-radius:var(--radius-sm);padding:14px;border-left:3px solid var(--green);font-size:13px;line-height:1.7;}
+  .prevention-box{background:var(--bg3);border-radius:var(--radius-sm);padding:14px;border-left:3px solid var(--purple);font-size:13px;}
+  .empty-state{text-align:center;padding:60px 24px;color:var(--muted);}
+  .empty-state .icon{font-size:48px;margin-bottom:16px;}
+  .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .progress-bar{height:3px;background:var(--border);border-radius:99px;overflow:hidden;margin-top:8px;}
+  .progress-fill{height:100%;background:var(--blue);border-radius:99px;animation:prog 2s ease-in-out infinite;}
+  @keyframes prog{0%{width:5%}50%{width:80%}100%{width:95%}}
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--bg3);border:1px solid var(--border);padding:12px 18px;border-radius:var(--radius);font-size:13px;z-index:100;}
+  .feedback-row{display:flex;gap:8px;margin-top:12px;align-items:center;}
+  .feedback-btn{background:var(--bg3);border:1px solid var(--border);color:var(--muted);border-radius:var(--radius-sm);padding:5px 12px;cursor:pointer;font-size:12px;transition:all .15s;}
+  .feedback-btn:hover{border-color:var(--blue);color:var(--blue);}
+  .health-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .health-chip{font-size:11px;padding:3px 8px;border-radius:99px;font-weight:500;}
+  .chip-ok{background:#0d2a1a;color:var(--green);}
+  .chip-warn{background:#2a1515;color:var(--red);}
+</style>
+</head>
+<body>
+<header>
+  <div class="vm-icon">🖥</div>
+  <h1>VM AI Debugger</h1>
+  <span class="badge">v1.0</span>
+  <div style="margin-left:auto;font-size:12px;color:var(--muted)" id="api-status">Connecting...</div>
+</header>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="section-title">Investigation</div>
+    <div class="form-group">
+      <label>IIS Site Name <span style="color:var(--muted)">(optional)</span></label>
+      <input id="site-name" type="text" placeholder="e.g. ConpendQA1">
+    </div>
+    <div class="form-group">
+      <label>App Path <span style="color:var(--muted)">(optional)</span></label>
+      <input id="app-path" type="text" placeholder="E:\wwwroot\ConpendQA1">
+    </div>
+    <div class="form-group">
+      <label>Target Host <span style="color:var(--muted)">(for network checks)</span></label>
+      <input id="target-host" type="text" placeholder="qa1.conpend.ai">
+    </div>
+    <div class="toggle-row">
+      <span style="font-size:13px">Check MySQL</span>
+      <div class="toggle on" id="toggle-mysql" onclick="toggleSwitch(this)"></div>
+    </div>
+    <div class="toggle-row">
+      <span style="font-size:13px">Check Network</span>
+      <div class="toggle on" id="toggle-network" onclick="toggleSwitch(this)"></div>
+    </div>
+    <div style="margin-top:14px">
+      <button class="btn btn-primary" onclick="startInvestigation()">🔍 Investigate</button>
+    </div>
+    <div class="divider"></div>
+    <div class="section-title">Configuration</div>
+    <div id="health-panel" style="font-size:12px;color:var(--muted)">Loading...</div>
+    <div class="divider"></div>
+    <div class="section-title">Recent Investigations</div>
+    <div id="history-list"><div style="color:var(--muted);font-size:12px">Loading...</div></div>
+  </aside>
+  <main class="main">
+    <div id="main-content">
+      <div class="empty-state">
+        <div class="icon">🖥</div>
+        <h3>VM AI Debugger</h3>
+        <p>Configure your VM connection in <code>.env</code>,<br>then click <strong>Investigate</strong> to start.</p>
+        <br>
+        <p style="font-size:12px">Detects: IIS failures · App pool crashes · .NET errors<br>
+        SAML2 config issues · MySQL problems · SSL expiry<br>
+        High CPU/memory · Disk full · Network blocks</p>
+      </div>
+    </div>
+  </main>
+</div>
+<script>
+const API='/api/v1';
+let currentInvId=null,pollTimer=null;
+const CAT_ICONS={iis_failure:'🌐',dotnet_crash:'💥',saml2_error:'🔐',mysql_down:'🗄️',mysql_performance:'📊',high_cpu:'⚡',high_memory:'💾',disk_full:'💿',ssl_expiry:'🔒',network_blocked:'🌐',service_crashed:'⚙️',config_error:'⚙️',pending_reboot:'🔄',unknown:'❓'};
+
+async function checkHealth(){
+  try{
+    const r=await fetch(`${API}/health`);
+    const d=await r.json();
+    document.getElementById('api-status').textContent=d.status==='ok'?'✅ Connected':'❌ Error';
+    const el=document.getElementById('health-panel');
+    const chips=[
+      {label:'Windows VM',ok:d.windows_vm_configured},
+      {label:'Linux VM',ok:d.linux_vm_configured},
+      {label:'MySQL',ok:d.mysql_configured},
+      {label:'LLM',ok:Object.values(d.llm_providers||{}).some(v=>v)},
+    ];
+    el.innerHTML='<div class="health-row">'+chips.map(c=>`<span class="health-chip ${c.ok?'chip-ok':'chip-warn'}">${c.ok?'✓':'✗'} ${c.label}</span>`).join('')+'</div>';
+  }catch{document.getElementById('api-status').textContent='❌ API Unreachable';}
+}
+
+async function loadHistory(){
+  try{
+    const r=await fetch(`${API}/history?limit=20`);
+    const d=await r.json();
+    renderHistory(d.investigations||[]);
+  }catch{}
+}
+
+function renderHistory(invs){
+  const el=document.getElementById('history-list');
+  if(!invs.length){el.innerHTML='<div style="color:var(--muted);font-size:12px">No investigations yet</div>';return;}
+  el.innerHTML=invs.map(inv=>{
+    const dc=inv.status==='running'?'dot-running':inv.status==='error'?'dot-error':'dot-completed';
+    const sc=inv.failure_category?`sev-${inv.severity||'low'}`:'';
+    const icon=CAT_ICONS[inv.failure_category]||'❓';
+    const title=inv.pod_name||inv.deployment_name||inv.namespace||'VM';
+    const ts=new Date(inv.created_at).toLocaleTimeString();
+    return `<div class="history-item${inv.id===currentInvId?' active':''}" onclick="loadInvestigation('${inv.id}')">
+      <div class="hi-ts">${ts}</div>
+      <div class="hi-title">${icon} ${title}</div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <span class="status-dot ${dc}"></span>
+        ${inv.failure_category?`<span class="sev-badge ${sc}">${inv.failure_category.replace(/_/g,' ')}</span>`:''}
+        ${inv.confidence?`<span style="font-size:11px;color:var(--muted)">${inv.confidence}%</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleSwitch(el){el.classList.toggle('on');}
+
+async function startInvestigation(){
+  const body={
+    site_name:document.getElementById('site-name').value||'',
+    app_path:document.getElementById('app-path').value||'',
+    target_host:document.getElementById('target-host').value||'',
+    check_mysql:document.getElementById('toggle-mysql').classList.contains('on'),
+    check_network:document.getElementById('toggle-network').classList.contains('on'),
+  };
+  try{
+    const r=await fetch(`${API}/investigate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json();
+    currentInvId=d.investigation_id;
+    showLoading(body.site_name||'VM');
+    loadHistory();
+    pollResult(currentInvId);
+  }catch(e){showToast('Error: '+e.message);}
+}
+
+function showLoading(target){
+  document.getElementById('main-content').innerHTML=`<div class="card"><div class="spinner"></div>
+    <p style="text-align:center;color:var(--muted)">Investigating <strong style="color:var(--text)">${target}</strong></p>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+    <p style="text-align:center;font-size:12px;color:var(--muted);margin-top:12px">Connecting to VM — checking IIS, .NET app, MySQL, Event Viewer, SSL...</p>
+  </div>`;
+}
+
+function pollResult(invId){
+  if(pollTimer)clearInterval(pollTimer);
+  pollTimer=setInterval(async()=>{
+    const inv=await fetchInvestigation(invId);
+    if(inv&&inv.status!=='running'){clearInterval(pollTimer);renderResult(inv);loadHistory();}
+  },2000);
+}
+
+async function fetchInvestigation(invId){
+  try{const r=await fetch(`${API}/investigation/${invId}`);return await r.json();}catch{return null;}
+}
+
+async function loadInvestigation(invId){
+  currentInvId=invId;
+  const inv=await fetchInvestigation(invId);
+  if(!inv)return;
+  if(inv.status==='running'){showLoading('VM');pollResult(invId);}
+  else renderResult(inv);
+  loadHistory();
+}
+
+function renderResult(inv){
+  if(inv.status==='error'){
+    document.getElementById('main-content').innerHTML=`<div class="card"><div class="card-title">❌ Investigation Error</div><p style="color:var(--red)">${inv.root_cause||'Unknown error'}</p></div>`;
+    return;
+  }
+  const a=inv.analysis||{};
+  const icon=CAT_ICONS[a.failure_category]||'❓';
+  const sevCls=`pill-sev-${a.severity||'low'}`;
+  const signals=(a.signals||[]).map(s=>`<li><span class="signal-dot"></span>${s}</li>`).join('');
+  const fixes=(a.fix_recommendations||[]).map(f=>`
+    <div class="fix-step">
+      <div class="fix-step-header"><div class="step-num">${f.step||'→'}</div><div style="font-weight:500;font-size:13px">${f.description}</div></div>
+      ${f.command?`<div class="fix-cmd" onclick="copyCmd(this)">${f.command}</div>`:''}
+      ${f.expected_outcome?`<div class="fix-outcome">✓ ${f.expected_outcome}</div>`:''}
+    </div>`).join('');
+  const dur=inv.completed_at?Math.round((new Date(inv.completed_at)-new Date(inv.created_at))/1000):'?';
+  const confColor=a.confidence>=80?'var(--green)':a.confidence>=50?'var(--amber)':'var(--red)';
+
+  document.getElementById('main-content').innerHTML=`
+    <div class="card">
+      <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start">
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">${icon} ${(a.failure_category||'').replace(/_/g,' ').toUpperCase()} · ${dur}s</div>
+          <div class="root-cause">${a.root_cause||'Analysis complete'}</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:22px;font-weight:700;color:${confColor}">${a.confidence||0}%</div>
+          <div style="font-size:11px;color:var(--muted)">confidence</div>
+        </div>
+      </div>
+      <div class="meta-row">
+        <span class="meta-pill pill-cat">${icon} ${(a.failure_category||'unknown').replace(/_/g,' ')}</span>
+        <span class="meta-pill ${sevCls}">⚠ ${a.severity||'unknown'}</span>
+        ${inv.mode?`<span style="font-size:12px;color:var(--muted)">mode: ${inv.mode}</span>`:''}
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" onclick="showTab(this,'summary')">Summary</div>
+      <div class="tab" onclick="showTab(this,'signals')">Signals (${(a.signals||[]).length})</div>
+      <div class="tab" onclick="showTab(this,'fixes')">Fix Steps (${(a.fix_recommendations||[]).length})</div>
+      <div class="tab" onclick="showTab(this,'prevention')">Prevention</div>
+      <div class="tab" onclick="showTab(this,'raw')">Raw Evidence</div>
+    </div>
+    <div id="tab-summary">
+      <div class="summary-box">${a.summary||'No summary available.'}</div>
+      <div class="feedback-row">
+        <span style="font-size:12px;color:var(--muted)">Was this helpful?</span>
+        <button class="feedback-btn" onclick="submitFeedback('${inv.id}',true)">👍 Yes</button>
+        <button class="feedback-btn" onclick="submitFeedback('${inv.id}',false)">👎 No</button>
+      </div>
+    </div>
+    <div id="tab-signals" style="display:none"><ul class="signals-list">${signals||'<li>No signals</li>'}</ul></div>
+    <div id="tab-fixes" style="display:none">${fixes||'<p style="color:var(--muted)">No fix steps</p>'}</div>
+    <div id="tab-prevention" style="display:none"><div class="prevention-box">💡 ${a.prevention||'No prevention advice.'}</div></div>
+    <div id="tab-raw" style="display:none"><div class="fix-cmd" style="max-height:500px;overflow-y:auto;white-space:pre-wrap">${JSON.stringify(inv.evidence||{},null,2)}</div></div>`;
+}
+
+function showTab(el,name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  ['summary','signals','fixes','prevention','raw'].forEach(t=>{
+    const e=document.getElementById('tab-'+t);
+    if(e)e.style.display=t===name?'block':'none';
+  });
+}
+
+function copyCmd(el){navigator.clipboard.writeText(el.textContent.trim()).then(()=>showToast('Copied!'));}
+async function submitFeedback(invId,helpful){
+  try{await fetch(`${API}/investigation/${invId}/feedback`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({helpful})});
+  showToast(helpful?'👍 Thanks!':'👎 Noted');}catch{}
+}
+function showToast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3000);}
+
+checkHealth();
+loadHistory();
+setInterval(loadHistory,30000);
+</script>
+</body>
+</html>
