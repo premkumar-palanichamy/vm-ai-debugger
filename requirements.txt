@@ -20,6 +20,11 @@ pywinrm>=0.4.3
 # Linux VM connection (SSH)
 paramiko>=3.4.0
 
-# MySQL inspection
+# SQL Server (primary driver)
+pymssql>=2.2.11
+
+# MySQL (if using MySQL instead of SQL Server)
 pymysql>=1.1.0
+
+# Encryption support
 cryptography>=42.0.0

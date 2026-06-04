@@ -1,0 +1,18 @@
+#!/bin/bash
+# Pre-commit hook: prevent committing .env with real API keys
+
+# Check if .env exists and will be committed
+if git diff --cached --name-only | grep -q "\.env$"; then
+    echo "🔒 Checking .env for real API keys..."
+    
+    # Check only uncommented lines for real API key patterns
+    if git diff --cached .env | grep -v '^+#' | grep -E "^[+].*=.*(sk-ant-|sk-or-v1-|AIza[0-9A-Za-z_-]{35})"; then
+        echo "❌ ABORT: Real API keys detected in .env"
+        echo "   DO NOT commit actual credentials to git."
+        echo "   Keep .env in .gitignore with real secrets."
+        echo "   If you must stage it, use: git reset .env"
+        exit 1
+    fi
+fi
+
+exit 0

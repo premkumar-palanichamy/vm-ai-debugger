@@ -13,3 +13,5 @@ venv/
 .vscode/
 .cursor/
 *.log
+# Keep .env local with real secrets — never push credentials
+.env

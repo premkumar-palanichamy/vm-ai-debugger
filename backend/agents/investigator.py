@@ -14,7 +14,7 @@ from backend.tools.system_inspector import inspect_windows_system, inspect_linux
 from backend.tools.iis_inspector import inspect_iis
 from backend.tools.dotnet_inspector import inspect_dotnet_app
 from backend.tools.windows_events import inspect_windows_events
-from backend.tools.mysql_inspector import inspect_mysql, inspect_mysql_via_winrm
+from backend.tools.database_inspector import inspect_all_databases, get_configured_databases
 from backend.tools.network_inspector import inspect_vm_network, inspect_network_via_winrm
 
 logger = logging.getLogger(__name__)
@@ -94,9 +94,7 @@ def gather_evidence(
             evidence["dotnet"] = inspect_dotnet_app(win_conn, site_name=site_name, app_path=app_path)
             evidence["events"] = inspect_windows_events(win_conn)
 
-            # MySQL via WinRM (service check)
-            if check_mysql:
-                evidence["mysql_service"] = inspect_mysql_via_winrm(win_conn)
+            # Database checks via WinRM handled in unified inspector below
 
             # Network from inside VM
             if check_network:
@@ -125,12 +123,13 @@ def gather_evidence(
             if linux_conn:
                 linux_conn.disconnect()
 
-    # ── MySQL direct (if configured) ───────────────────────────────
-    if check_mysql and os.getenv("MYSQL_HOST", ""):
+    # ── Database inspection (MySQL + SQL Server) ─────────────────
+    if check_mysql:
         try:
-            evidence["mysql"] = inspect_mysql()
+            # Pass winrm_conn so DB can be checked via WinRM if direct TCP fails
+            evidence["databases"] = inspect_all_databases(winrm_conn=win_conn)
         except Exception as e:
-            evidence["mysql_error"] = str(e)
+            evidence["database_error"] = str(e)
 
     # ── External network checks ────────────────────────────────────
     if check_network and target_host:
