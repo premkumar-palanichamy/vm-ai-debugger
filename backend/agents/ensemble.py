@@ -99,7 +99,7 @@ def get_configured_models() -> list[dict]:
 
 
 # ── Model callers ─────────────────────────────────────────────────────
-async def _call_anthropic(model: dict, evidence_text: str) -> dict:
+async def _call_anthropic(model: dict, evidence_text: str, system_prompt: str = "") -> dict:
     """Call Claude directly via Anthropic SDK (run in thread — SDK is sync)."""
     try:
         import anthropic
@@ -130,7 +130,7 @@ async def _call_anthropic(model: dict, evidence_text: str) -> dict:
         return _error_result(model, str(e))
 
 
-async def _call_openrouter(model: dict, evidence_text: str) -> dict:
+async def _call_openrouter(model: dict, evidence_text: str, system_prompt: str = "") -> dict:
     """Call any model via OpenRouter API."""
     try:
         async with httpx.AsyncClient(timeout=90) as client:
@@ -166,7 +166,7 @@ async def _call_openrouter(model: dict, evidence_text: str) -> dict:
         return _error_result(model, str(e))
 
 
-async def _call_gemini(model: dict, evidence_text: str) -> dict:
+async def _call_gemini(model: dict, evidence_text: str, system_prompt: str = "") -> dict:
     """Call Gemini directly via Google AI API."""
     try:
         async with httpx.AsyncClient(timeout=90) as client:
@@ -197,13 +197,13 @@ async def _call_gemini(model: dict, evidence_text: str) -> dict:
 
 
 # ── Route to correct caller based on provider ────────────────────────
-async def _call_model(model: dict, evidence_text: str) -> dict:
+async def _call_model(model: dict, evidence_text: str, system_prompt: str = "") -> dict:
     if model["provider"] == "anthropic":
-        return await _call_anthropic(model, evidence_text)
+        return await _call_anthropic(model, evidence_text, system_prompt)
     elif model["provider"] == "openrouter":
-        return await _call_openrouter(model, evidence_text)
+        return await _call_openrouter(model, evidence_text, system_prompt)
     elif model["provider"] == "gemini":
-        return await _call_gemini(model, evidence_text)
+        return await _call_gemini(model, evidence_text, system_prompt)
     else:
         return _error_result(model, f"Unknown provider: {model['provider']}")
 
@@ -344,11 +344,17 @@ def _error_result(model: dict, error: str) -> dict:
 
 
 # ── Main ensemble entry point ─────────────────────────────────────────
-async def analyze_with_ensemble(evidence: dict) -> dict:
+async def analyze_with_ensemble(evidence: dict, system_prompt: str = "") -> dict:
     """
     Dynamically detects configured models from .env,
     runs them all in parallel, and correlates results.
+    Uses dynamic system_prompt built from detected services.
     """
+    from backend.tools.service_detector import build_system_prompt
+    if not system_prompt:
+        detected = evidence.get("detected_services", {})
+        system_prompt = build_system_prompt(detected)
+
     configured = get_configured_models()
 
     if not configured:
@@ -370,7 +376,7 @@ async def analyze_with_ensemble(evidence: dict) -> dict:
                 len(configured), [m["label"] for m in configured])
 
     # Run all configured models in PARALLEL
-    tasks = [_call_model(model, evidence_text) for model in configured]
+    tasks = [_call_model(model, evidence_text, system_prompt) for model in configured]
     results = await asyncio.gather(*tasks, return_exceptions=False)
 
     correlation = _correlate(list(results), len(configured))
@@ -383,6 +389,6 @@ async def analyze_with_ensemble(evidence: dict) -> dict:
 
 
 # ── Sync wrapper ──────────────────────────────────────────────────────
-def analyze_with_ensemble_sync(evidence: dict) -> dict:
+def analyze_with_ensemble_sync(evidence: dict, system_prompt: str = "") -> dict:
     """Synchronous wrapper — called from investigator.py."""
-    return asyncio.run(analyze_with_ensemble(evidence))
+    return asyncio.run(analyze_with_ensemble(evidence, system_prompt))

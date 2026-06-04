@@ -16,6 +16,7 @@ from backend.tools.dotnet_inspector import inspect_dotnet_app
 from backend.tools.windows_events import inspect_windows_events
 from backend.tools.database_inspector import inspect_all_databases, get_configured_databases
 from backend.tools.network_inspector import inspect_vm_network, inspect_network_via_winrm
+from backend.tools.service_detector import detect_windows_services, detect_linux_services, build_system_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +90,9 @@ def gather_evidence(
             win_conn.connect()
             logger.info("Connected to Windows VM — collecting evidence")
 
+            # Auto-detect what's running — used to build dynamic LLM prompt
+            evidence["detected_services"] = detect_windows_services(win_conn)
+
             evidence["system"] = inspect_windows_system(win_conn)
             evidence["iis"] = inspect_iis(win_conn)
             evidence["dotnet"] = inspect_dotnet_app(win_conn, site_name=site_name, app_path=app_path)
@@ -115,6 +119,7 @@ def gather_evidence(
             linux_conn = SSHConnector()
             linux_conn.connect()
             logger.info("Connected to Linux VM — collecting evidence")
+            evidence["detected_services"] = detect_linux_services(linux_conn)
             evidence["system_linux"] = inspect_linux_system(linux_conn)
         except Exception as e:
             logger.error("Linux VM evidence collection failed: %s", e)
@@ -168,13 +173,13 @@ Respond with valid JSON only."""
     raise ValueError("No API key configured. Set ANTHROPIC_API_KEY, OPENROUTER_API_KEY, or GEMINI_API_KEY in .env")
 
 
-def _call_anthropic(user_message: str, api_key: str) -> dict:
+def _call_anthropic(user_message: str, api_key: str, system_prompt: str = "") -> dict:
     import anthropic
     model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
     client = anthropic.Anthropic(api_key=api_key)
     message = client.messages.create(
         model=model, max_tokens=2048,
-        system=SYSTEM_PROMPT,
+        system=system_prompt or SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_message}],
     )
     return _parse_response(message.content[0].text)
@@ -245,7 +250,7 @@ def investigate(
 
     if len(configured) > 1:
         logger.info("Auto-detected %d API keys — running ensemble", len(configured))
-        ensemble_result = analyze_with_ensemble_sync(evidence)
+        ensemble_result = analyze_with_ensemble_sync(evidence, dynamic_prompt)
         correlation = ensemble_result.get("correlation", {})
         analysis = {
             "root_cause": correlation.get("summary", ""),
