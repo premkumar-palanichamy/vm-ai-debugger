@@ -244,6 +244,10 @@ def investigate(
         target_host=target_host,
     )
 
+    # Build dynamic prompt from detected services
+    detected = evidence.get("detected_services", {})
+    dynamic_prompt = build_system_prompt(detected)
+
     # Auto-detect ensemble vs single model
     from backend.agents.ensemble import get_configured_models, analyze_with_ensemble_sync
     configured = get_configured_models()
