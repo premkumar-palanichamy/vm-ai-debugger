@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="VM AI Debugger",
     description="AI-powered Windows/Linux VM troubleshooting — IIS, .NET, MySQL, SAML2",
-    version="1.0.0",
+    version="2.0.0",
 )
 
 app.add_middleware(
