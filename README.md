@@ -185,10 +185,7 @@ All differ → LOW               → flag for human review
 
 The dashboard shows individual model results with ensemble confidence scoring.
 
-# Results
-
-**Analysis & Findings** - Detailed diagnosis from ensemble:
-![Investigation Analysis](docs/images/investigation-analysis.png)
+![Investigation Results Grid](docs/images/investigation-grid.png)
 
 ## Failure categories covered
 
@@ -234,7 +231,9 @@ vm-ai-debugger/
 
 ## 📝 License
 
-MIT License
+MIT License — Copyright (c) 2026 [premkumarpalanichamy](https://github.com/premkumar-palanichamy)
+
+See [LICENSE](LICENSE) for full text.
 
 ## 🌐 Connect With Me
 

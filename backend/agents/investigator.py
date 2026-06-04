@@ -98,7 +98,12 @@ def gather_evidence(
             evidence["dotnet"] = inspect_dotnet_app(win_conn, site_name=site_name, app_path=app_path)
             evidence["events"] = inspect_windows_events(win_conn)
 
-            # Database checks via WinRM handled in unified inspector below
+            # Database inspection — done while WinRM connection is still open
+            if check_mysql:
+                try:
+                    evidence["databases"] = inspect_all_databases(winrm_conn=win_conn)
+                except Exception as e:
+                    evidence["database_error"] = str(e)
 
             # Network from inside VM
             if check_network:
@@ -127,14 +132,6 @@ def gather_evidence(
         finally:
             if linux_conn:
                 linux_conn.disconnect()
-
-    # ── Database inspection (MySQL + SQL Server) ─────────────────
-    if check_mysql:
-        try:
-            # Pass winrm_conn so DB can be checked via WinRM if direct TCP fails
-            evidence["databases"] = inspect_all_databases(winrm_conn=win_conn)
-        except Exception as e:
-            evidence["database_error"] = str(e)
 
     # ── External network checks ────────────────────────────────────
     if check_network and target_host:
